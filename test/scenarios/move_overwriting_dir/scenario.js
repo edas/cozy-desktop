@@ -3,7 +3,6 @@
 /*:: import type { Scenario } from '..' */
 
 module.exports = ({
-  side: 'local',
   init: [
     { ino: 1, path: 'dst/' },
     { ino: 2, path: 'dst/dir/' },
