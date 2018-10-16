@@ -2,6 +2,7 @@
 const fs = require('fs-extra')
 const _ = require('lodash')
 const path = require('path')
+const os = require('os')
 
 const { hideOnWindows } = require('./utils/fs')
 const logger = require('./logger')
@@ -9,6 +10,17 @@ const logger = require('./logger')
 const log = logger({
   component: 'Config'
 })
+const TMP_CONFIG_PATH = path.join(os.tmpdir(), 'cozy-desktop', 'config.json')
+
+function writeTmpConfig (config) {
+  fs.ensureFileSync(TMP_CONFIG_PATH)
+  fs.writeFileSync(TMP_CONFIG_PATH, config)
+}
+
+function moveTmpConfig (configPath) {
+  fs.copySync(TMP_CONFIG_PATH, configPath, fs.constants.COPYFILE_FICLONE)
+  fs.unlinkSync(TMP_CONFIG_PATH)
+}
 
 // Config can keep some configuration parameters in a JSON file,
 // like the devices credentials or the mount path
@@ -16,28 +28,47 @@ module.exports = class Config {
   // Create config file if it doesn't exist.
   constructor (basePath) {
     this.configPath = path.join(basePath, 'config.json')
+    fs.ensureFileSync(this.configPath)
     this.dbPath = path.join(basePath, 'db')
     fs.ensureDirSync(this.dbPath)
     hideOnWindows(basePath)
-    fs.ensureFileSync(this.configPath)
 
-    if (fs.readFileSync(this.configPath).toString() === '') {
-      this.reset()
+    this.config = Config.import(this.configPath)
+    this.persist()
+
+    // FIXME: autoBind(this)
+  }
+
+  // Import the configuration from disk
+  static import (configPath) {
+    let config
+
+    if (fs.existsSync(TMP_CONFIG_PATH)) {
+      config = this.safeLoad(TMP_CONFIG_PATH)
+
+      if (!!config && !!config.configPath) {
+        moveTmpConfig(config.configPath)
+      }
+    } else {
+      config = this.safeLoad(configPath)
     }
 
+    return config
+  }
+
+  // Load a config JSON file or return an empty object
+  static safeLoad (configPath) {
     try {
-      this.config = require(this.configPath)
+      return require(configPath)
     } catch (e) {
       if (e instanceof SyntaxError) {
-        log.error(`Could not read config file at ${this.configPath}:`, e)
-        this.reset()
-        this.config = require(this.configPath)
+        log.error(`Could not read config file at ${configPath}:`, e)
+        fs.unlinkSync(configPath)
+        return {}
       } else {
         throw e
       }
     }
-
-    // FIXME: autoBind(this)
   }
 
   // Reset the configuration
@@ -49,7 +80,8 @@ module.exports = class Config {
 
   // Save configuration to file system.
   persist () {
-    fs.writeFileSync(this.configPath, this.toJSON())
+    writeTmpConfig(this.toJSON())
+    moveTmpConfig(this.configPath)
   }
 
   // Transform the config to a JSON string
