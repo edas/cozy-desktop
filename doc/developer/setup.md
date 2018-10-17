@@ -13,7 +13,7 @@ To start developing, check the prerequisites and follow the guide below.
 To develop and build the source code, you will need the following:
 
 -   [Git](https://git-scm.com/)
--   [Node.js](https://nodejs.org/)
+-   [Node.js](https://nodejs.org/) in version 8.x (reportedly not working in node v10/mac)
 -   [Yarn](https://yarnpkg.com/)
 -   [Docker](https://www.docker.com/)
 -   [Cozy Stack in Docker](./requirements.md#set-up-a-cozy-stack)
